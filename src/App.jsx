@@ -432,6 +432,20 @@ function App() {
     event.target.value = ''
   }
 
+  const removePhoto = () => {
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview)
+    }
+    setPhotoPreview('')
+    setValues((prev) => ({ ...prev, photo: null }))
+    // Clear file inputs
+    const photoInput = document.querySelector('input[name="photo"]')
+    if (photoInput) photoInput.value = ''
+    if (cameraCaptureInputRef.current) {
+      cameraCaptureInputRef.current.value = ''
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     const validationErrors = validate(values)
@@ -685,9 +699,16 @@ function App() {
               {photoPreview && (
                 <div className="photo-preview">
                   <img src={photoPreview} alt="Captured visitor" />
+                  <button
+                    type="button"
+                    className="remove-photo-btn"
+                    onClick={removePhoto}
+                    aria-label="Remove photo"
+                  >
+                    ×
+                  </button>
                 </div>
               )}
-              <span className="helper">Upload a clear headshot (optional).</span>
             </div>
           </div>
 
@@ -956,6 +977,12 @@ function App() {
                 URL.revokeObjectURL(photoPreview)
               }
               setPhotoPreview('')
+              // Clear file inputs
+              const photoInput = document.querySelector('input[name="photo"]')
+              if (photoInput) photoInput.value = ''
+              if (cameraCaptureInputRef.current) {
+                cameraCaptureInputRef.current.value = ''
+              }
             }}
           >
             Reset

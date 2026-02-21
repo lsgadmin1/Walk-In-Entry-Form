@@ -344,12 +344,43 @@ select[aria-invalid='true'] {
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(0, 0, 0, 0.02);
+  position: relative;
 }
 
 .photo-preview img {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.remove-photo-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: rgba(220, 38, 38, 0.95);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-photo-btn:hover {
+  background: rgba(220, 38, 38, 1);
+  transform: scale(1.1);
+}
+
+.remove-photo-btn:active {
+  transform: scale(1);
 }
 
 .hidden {
