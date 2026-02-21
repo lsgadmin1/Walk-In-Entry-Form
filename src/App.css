@@ -330,12 +330,44 @@ select[aria-invalid='true'] {
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: #000000;
+  position: relative;
 }
 
 .camera-preview video {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.flip-camera-btn {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flip-camera-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: rotate(180deg) scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.flip-camera-btn:active {
+  transform: rotate(180deg) scale(1);
 }
 
 .photo-preview {

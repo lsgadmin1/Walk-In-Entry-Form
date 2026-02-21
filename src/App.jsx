@@ -196,6 +196,7 @@ function App() {
   const cameraCaptureInputRef = useRef(null)
 
   const [env, setEnv] = useState('production')
+  const [facingMode, setFacingMode] = useState('user')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -356,6 +357,7 @@ function App() {
     }
     setCameraStream(null)
     setCameraOpen(false)
+    setFacingMode('user')
   }
 
   const openCamera = async (event) => {
@@ -371,7 +373,7 @@ function App() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
+        video: { facingMode },
         audio: false,
       })
       setCameraStream(stream)
@@ -394,6 +396,26 @@ function App() {
         return
       }
       setCameraError('Unable to start camera. Please try again.')
+    }
+  }
+
+  const flipCamera = async () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop())
+    }
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user'
+    setFacingMode(newFacingMode)
+    setCameraError('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacingMode },
+        audio: false,
+      })
+      setCameraStream(stream)
+    } catch (error) {
+      setCameraError('Unable to switch camera. Please try again.')
+      setCameraStream(null)
+      setCameraOpen(false)
     }
   }
 
@@ -694,6 +716,15 @@ function App() {
                 <div className="camera-preview">
                   <video ref={videoRef} autoPlay playsInline muted />
                   <canvas ref={canvasRef} className="hidden" />
+                  <button
+                    type="button"
+                    className="flip-camera-btn"
+                    onClick={flipCamera}
+                    aria-label="Flip camera"
+                    title="Switch camera"
+                  >
+                    🔄
+                  </button>
                 </div>
               )}
               {photoPreview && (
