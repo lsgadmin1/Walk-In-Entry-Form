@@ -6,13 +6,13 @@ import uploadData from './utils/uploadData'
 
 const initialValues = {
   fullName: '',
-  phone: '',
+  phone: '91',
   email: '',
   photo: null,
   gender: '',
   arrival: '',
   departure: '',
-  members: 'single',
+  members: '',
   men: '',
   women: '',
   boys: '',
@@ -29,13 +29,14 @@ const validate = (values) => {
     errors.fullName = 'Full name must be at least 2 characters.'
   }
 
-  if (!values.phone.trim()) {
+  const phoneDigits = values.phone.trim()
+  if (!phoneDigits || phoneDigits === '91') {
     errors.phone = 'Phone number is required.'
-  } else if (!/^\d{6,15}$/.test(values.phone.trim())) {
+  } else if (!/^\d{10,15}$/.test(phoneDigits)) {
     errors.phone = 'Enter a valid phone number.'
   }
 
-  if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+  if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
     errors.email = 'Enter a valid email address.'
   }
 
@@ -55,26 +56,22 @@ const validate = (values) => {
         return
       }
       const numericValue = Number(rawValue)
-      if (!Number.isFinite(numericValue) || numericValue < 0) {
+      if (!Number.isFinite(numericValue) || !Number.isInteger(numericValue) || numericValue < 0) {
         errors[field] = 'Enter a valid number.'
         return
       }
       total += numericValue
     })
 
-    if (total === 0) {
+    const hasGroupFieldErrors = groupFields.some((field) => errors[field])
+    if (!hasGroupFieldErrors && total === 0) {
       errors.groupTotal = 'Provide at least one group member.'
     }
   }
 
-  const hasVehicleInput = values.vehicles.some(
-    (vehicle) => vehicle.number.trim() || vehicle.type,
-  )
-  if (hasVehicleInput) {
+  if (values.vehicles.length > 0) {
     const vehicleErrorsList = values.vehicles.map((vehicle) => {
       const vehicleErrors = {}
-      const hasInput = vehicle.number.trim() || vehicle.type
-      if (!hasInput) return vehicleErrors
       if (!vehicle.number.trim()) vehicleErrors.number = 'Vehicle number is required.'
       else if (!VEHICLE_NUMBER_REGEX.test(vehicle.number.trim())) {
         vehicleErrors.number = 'Use format: KA 01 AB 1234'
@@ -147,6 +144,7 @@ const formatVehicleNumber = (value) => {
   const match = cleaned.match(/^([A-Z]{0,2})(\d{0,2})([A-Z]{0,3})(\d{0,4}).*$/)
   if (!match) return ''
   const [, stateCode, districtCode, series, uniqueNumber] = match
+  // const paddedDistrict = districtCode.length === 1 ? districtCode.padStart(2, '0') : districtCode
   return [stateCode, districtCode, series, uniqueNumber].filter(Boolean).join(' ')
 }
 
@@ -194,6 +192,7 @@ function App() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const cameraCaptureInputRef = useRef(null)
+  const departureRef = useRef(null)
 
   const [env, setEnv] = useState('production')
   const [facingMode, setFacingMode] = useState('user')
@@ -230,8 +229,8 @@ function App() {
       boys: '0',
       girls: '0',
     }
-    if (nextValues.gender === 'male') updatedValues.men = '1'
-    if (nextValues.gender === 'female') updatedValues.women = '1'
+    if (nextValues.gender === 'Male') updatedValues.men = '1'
+    if (nextValues.gender === 'Female') updatedValues.women = '1'
     return updatedValues
   }
 
@@ -384,7 +383,7 @@ function App() {
         return
       }
       if (error?.name === 'NotFoundError' || error?.name === 'DevicesNotFoundError') {
-        setCameraError('No camera device was found on this phone.')
+        setCameraError('No camera  was found on this device.')
         return
       }
       if (error?.name === 'NotReadableError' || error?.name === 'TrackStartError') {
@@ -528,7 +527,7 @@ function App() {
     try {
 
       console.log('Submission payload:', submissionData)
-      
+
       const response = await uploadData(buildFormData(submissionData), env)
 
       if (!response) {
@@ -679,6 +678,7 @@ function App() {
               <label>
                 <span className="label">Visitor Photo</span>
                 <input
+                  key={`photo-${resetFormKey}`}
                   type="file"
                   name="photo"
                   onChange={handleChange}
@@ -753,8 +753,8 @@ function App() {
                   <input
                     type="radio"
                     name="gender"
-                    value="male"
-                    checked={values.gender === 'male'}
+                    value="Male"
+                    checked={values.gender === 'Male'}
                     onChange={handleChange}
                     onBlur={handleBlur}
                   />
@@ -764,8 +764,8 @@ function App() {
                   <input
                     type="radio"
                     name="gender"
-                    value="female"
-                    checked={values.gender === 'female'}
+                    value="Female"
+                    checked={values.gender === 'Female'}
                     onChange={handleChange}
                     onBlur={handleBlur}
                   />
@@ -788,11 +788,13 @@ function App() {
                 Expected Departure Date-Time <span className="required">*</span>
               </span>
               <input
+                ref={departureRef}
                 type="datetime-local"
                 name="departure"
                 value={values.departure}
                 onChange={handleChange}
                 onBlur={handleBlur}
+                onClick={() => departureRef.current?.showPicker()}
                 min={nowValue}
                 aria-invalid={Boolean(showError('departure'))}
               />
