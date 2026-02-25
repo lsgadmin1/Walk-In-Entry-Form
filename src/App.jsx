@@ -42,7 +42,13 @@ const validate = (values) => {
 
   if (!values.gender) errors.gender = 'Select a gender.'
 
-  if (!values.departure) errors.departure = 'Departure date-time is required.'
+  if (!values.departure) {
+    errors.departure = 'Departure date-time is required.'
+  } else if (values.departure <= getNowDateTimeLocal()) {
+    errors.departure = 'Departure must be a future date-time.'
+  } else if (values.arrival && values.departure <= values.arrival) {
+    errors.departure = 'Departure must be after arrival.'
+  }
 
   if (!values.members) errors.members = 'Select member type.'
 
@@ -563,6 +569,7 @@ function App() {
   const closeModal = () => {
     setShowModal(false)
     if (modalData.type === 'success') {
+
       const nextNow = getNowDateTimeLocal()
       const resetValues = { ...initialValues, arrival: nextNow }
       setValues(resetValues)
@@ -576,6 +583,7 @@ function App() {
       }
       setPhotoPreview('')
       setResetFormKey((prev) => prev + 1)
+      window.location.href = 'https://srimadhusudansai.com/'
     }
   }
 
@@ -795,7 +803,7 @@ function App() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 onClick={() => departureRef.current?.showPicker()}
-                min={nowValue}
+                min={values.arrival || nowValue}
                 aria-invalid={Boolean(showError('departure'))}
               />
               {showError('departure') && <span className="error">{errors.departure}</span>}
