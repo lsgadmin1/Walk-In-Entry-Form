@@ -285,14 +285,50 @@ select[aria-invalid='true'] {
   align-items: center;
 }
 
-/* ── Camera ── */
-.camera-preview {
-  margin-top: 0.75rem;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #d0c8bc;
+/* ── Camera modal ── */
+.camera-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.camera-modal-content {
+  width: 100%;
+  max-width: 520px;
   background: #000000;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  padding: 1.25rem;
+  background: #111111;
+}
+
+.camera-modal-actions .ghost-btn {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.camera-modal-actions .ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Camera preview (inside modal) ── */
+.camera-preview {
   position: relative;
+  background: #000000;
 }
 
 .camera-preview video {

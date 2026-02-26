@@ -583,7 +583,7 @@ function App() {
       }
       setPhotoPreview('')
       setResetFormKey((prev) => prev + 1)
-      window.location.href = 'https://srimadhusudansai.com/'
+      // window.location.href = 'https://srimadhusudansai.com/'
     }
   }
 
@@ -708,31 +708,33 @@ function App() {
                 <button type="button" className="ghost-btn" onClick={openCamera}>
                   Open Camera
                 </button>
-                {cameraOpen && (
-                  <button type="button" className="primary-btn" onClick={capturePhoto}>
-                    Capture Photo
-                  </button>
-                )}
-                {cameraOpen && (
-                  <button type="button" className="link-btn" onClick={stopCamera}>
-                    Close Camera
-                  </button>
-                )}
               </div>
               {cameraError && <span className="error">{cameraError}</span>}
               {cameraOpen && (
-                <div className="camera-preview">
-                  <video ref={videoRef} autoPlay playsInline muted />
-                  <canvas ref={canvasRef} className="hidden" />
-                  <button
-                    type="button"
-                    className="flip-camera-btn"
-                    onClick={flipCamera}
-                    aria-label="Flip camera"
-                    title="Switch camera"
-                  >
-                    🔄
-                  </button>
+                <div className="camera-modal-overlay">
+                  <div className="camera-modal-content">
+                    <div className="camera-preview">
+                      <video ref={videoRef} autoPlay playsInline muted />
+                      <canvas ref={canvasRef} className="hidden" />
+                      <button
+                        type="button"
+                        className="flip-camera-btn"
+                        onClick={flipCamera}
+                        aria-label="Flip camera"
+                        title="Switch camera"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                    <div className="camera-modal-actions">
+                      <button type="button" className="primary-btn" onClick={capturePhoto}>
+                        Capture Photo
+                      </button>
+                      <button type="button" className="ghost-btn" onClick={stopCamera}>
+                        Close
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
               {photoPreview && (
