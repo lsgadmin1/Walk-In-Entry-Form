@@ -11,7 +11,6 @@ const initialValues = {
   photo: null,
   gender: '',
   arrival: '',
-  departure: '',
   members: '',
   men: '',
   women: '',
@@ -41,14 +40,6 @@ const validate = (values) => {
   }
 
   if (!values.gender) errors.gender = 'Select a gender.'
-
-  if (!values.departure) {
-    errors.departure = 'Departure date-time is required.'
-  } else if (values.departure <= getNowDateTimeLocal()) {
-    errors.departure = 'Departure must be a future date-time.'
-  } else if (values.arrival && values.departure <= values.arrival) {
-    errors.departure = 'Departure must be after arrival.'
-  }
 
   if (!values.members) errors.members = 'Select member type.'
 
@@ -139,6 +130,12 @@ const formatZohoDateTime = (value) => {
   return `${day}-${months[monthIndex]}-${year} ${hour}:${minute}`
 }
 
+const getDepartureAtNineThirtyPm = (value) => {
+  const [datePart] = (value || '').split('T')
+  if (!datePart) return ''
+  return `${datePart}T21:30`
+}
+
 const formatVehicleType = (value) => {
   if (!value) return ''
   if (value === 'two-wheeler') return 'Two Wheeler'
@@ -198,7 +195,6 @@ function App() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const cameraCaptureInputRef = useRef(null)
-  const departureRef = useRef(null)
 
   const [env, setEnv] = useState('production')
   const [facingMode, setFacingMode] = useState('user')
@@ -482,7 +478,6 @@ function App() {
       phone: true,
       email: true,
       gender: true,
-      departure: true,
       members: true,
       men: true,
       women: true,
@@ -517,7 +512,9 @@ function App() {
       Phone_Number: values.phone ? `+${values.phone}` : '',
       Gender: values.gender,
       Expected_Arrival_Date_Time: formatZohoDateTime(getNowDateTimeLocal()),
-      Expected_Departure_Date_Time: formatZohoDateTime(values.departure),
+      Expected_Departure_Date_Time: formatZohoDateTime(
+        getDepartureAtNineThirtyPm(values.arrival || getNowDateTimeLocal()),
+      ),
       Number_of_Men: values.men,
       Number_of_Women: values.women,
       Number_of_Boys: values.boys,
@@ -784,32 +781,6 @@ function App() {
               </div>
               {showError('gender') && <span className="error">{errors.gender}</span>}
             </fieldset>
-          </div>
-        </section>
-
-        <section className="form-section">
-          <div className="section-title">
-            <h2>Visit Schedule</h2>
-            <p>Expected departure date-time.</p>
-          </div>
-          <div className="form-grid">
-            <label className="field">
-              <span className="label">
-                Expected Departure Date-Time <span className="required">*</span>
-              </span>
-              <input
-                ref={departureRef}
-                type="datetime-local"
-                name="departure"
-                value={values.departure}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                onClick={() => departureRef.current?.showPicker()}
-                min={values.arrival || nowValue}
-                aria-invalid={Boolean(showError('departure'))}
-              />
-              {showError('departure') && <span className="error">{errors.departure}</span>}
-            </label>
           </div>
         </section>
 
