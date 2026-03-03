@@ -154,7 +154,7 @@ const formatVehicleNumber = (value) => {
   return [stateCode, districtCode, series, uniqueNumber].filter(Boolean).join(' ')
 }
 
-const VEHICLE_NUMBER_REGEX = /^[A-Z]{2} \d{1,2} [A-Z]{1,3} \d{4}$/
+const VEHICLE_NUMBER_REGEX = /^[A-Z]{2} \d{1,2} [A-Z]{1,3} \d{1,4}$/
 
 
 const buildFormData = (payload) => {
