@@ -9,6 +9,7 @@ const initialValues = {
   phone: '91',
   email: '',
   photo: null,
+  idProof: null,
   gender: '',
   arrival: '',
   departure: '',
@@ -184,7 +185,10 @@ function App() {
     arrival: nowValue,
   }))
   const [photoPreview, setPhotoPreview] = useState('')
+  const [idProofPreview, setIdProofPreview] = useState('')
+  const [idProofPreviewType, setIdProofPreviewType] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraTarget, setCameraTarget] = useState('photo')
   const [cameraError, setCameraError] = useState('')
   const [cameraStream, setCameraStream] = useState(null)
   const [errors, setErrors] = useState({})
@@ -198,6 +202,7 @@ function App() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const cameraCaptureInputRef = useRef(null)
+  const idProofCameraCaptureInputRef = useRef(null)
   const departureRef = useRef(null)
 
   const [env, setEnv] = useState('production')
@@ -255,11 +260,14 @@ function App() {
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
       }
+      if (idProofPreview) {
+        URL.revokeObjectURL(idProofPreview)
+      }
       if (cameraStream) {
         cameraStream.getTracks().forEach((track) => track.stop())
       }
     }
-  }, [photoPreview, cameraStream])
+  }, [photoPreview, idProofPreview, cameraStream])
 
   const handleChange = (event) => {
     const { name, value, type, files } = event.target
@@ -290,6 +298,14 @@ function App() {
         URL.revokeObjectURL(photoPreview)
       }
       setPhotoPreview(nextValue ? URL.createObjectURL(nextValue) : '')
+    }
+
+    if (name === 'idProof') {
+      if (idProofPreview) {
+        URL.revokeObjectURL(idProofPreview)
+      }
+      setIdProofPreview(nextValue ? URL.createObjectURL(nextValue) : '')
+      setIdProofPreviewType(nextValue ? nextValue.type || '' : '')
     }
 
     setValues(nextValues)
@@ -362,15 +378,20 @@ function App() {
     }
     setCameraStream(null)
     setCameraOpen(false)
+    setCameraTarget('photo')
     setFacingMode('user')
   }
 
-  const openCamera = async (event) => {
+  const openCamera = async (event, target = 'photo') => {
     if (event) event.stopPropagation()
+    setCameraTarget(target)
     setCameraError('')
     if (!navigator.mediaDevices?.getUserMedia) {
-      if (cameraCaptureInputRef.current) {
-        cameraCaptureInputRef.current.click()
+      const fallbackInput = target === 'idProof'
+        ? idProofCameraCaptureInputRef.current
+        : cameraCaptureInputRef.current
+      if (fallbackInput) {
+        fallbackInput.click()
         return
       }
       setCameraError('Unable to access camera in this browser. Try using HTTPS or a different browser.')
@@ -436,14 +457,24 @@ function App() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     canvas.toBlob((blob) => {
       if (!blob) return
-      const file = new File([blob], `visitor-photo-${Date.now()}.jpg`, {
+      const fileNamePrefix = cameraTarget === 'idProof' ? 'id-proof' : 'visitor-photo'
+      const file = new File([blob], `${fileNamePrefix}-${Date.now()}.jpg`, {
         type: 'image/jpeg',
       })
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview)
+      if (cameraTarget === 'idProof') {
+        if (idProofPreview) {
+          URL.revokeObjectURL(idProofPreview)
+        }
+        setIdProofPreview(URL.createObjectURL(file))
+        setIdProofPreviewType(file.type)
+        setValues((prev) => ({ ...prev, idProof: file }))
+      } else {
+        if (photoPreview) {
+          URL.revokeObjectURL(photoPreview)
+        }
+        setPhotoPreview(URL.createObjectURL(file))
+        setValues((prev) => ({ ...prev, photo: file }))
       }
-      setPhotoPreview(URL.createObjectURL(file))
-      setValues((prev) => ({ ...prev, photo: file }))
       stopCamera()
     }, 'image/jpeg', 0.9)
   }
@@ -459,6 +490,18 @@ function App() {
     event.target.value = ''
   }
 
+  const handleIdProofCameraCaptureFileChange = (event) => {
+    const file = event.target.files?.[0] || null
+    if (!file) return
+    if (idProofPreview) {
+      URL.revokeObjectURL(idProofPreview)
+    }
+    setIdProofPreview(URL.createObjectURL(file))
+    setIdProofPreviewType(file.type || '')
+    setValues((prev) => ({ ...prev, idProof: file }))
+    event.target.value = ''
+  }
+
   const removePhoto = () => {
     if (photoPreview) {
       URL.revokeObjectURL(photoPreview)
@@ -470,6 +513,20 @@ function App() {
     if (photoInput) photoInput.value = ''
     if (cameraCaptureInputRef.current) {
       cameraCaptureInputRef.current.value = ''
+    }
+  }
+
+  const removeIdProof = () => {
+    if (idProofPreview) {
+      URL.revokeObjectURL(idProofPreview)
+    }
+    setIdProofPreview('')
+    setIdProofPreviewType('')
+    setValues((prev) => ({ ...prev, idProof: null }))
+    const idProofInput = document.querySelector('input[name="idProof"]')
+    if (idProofInput) idProofInput.value = ''
+    if (idProofCameraCaptureInputRef.current) {
+      idProofCameraCaptureInputRef.current.value = ''
     }
   }
 
@@ -529,6 +586,9 @@ function App() {
     if (values.photo) {
       submissionData.Visitor_s_Photo = values.photo
     }
+    if (values.idProof) {
+      submissionData.ID_Proof = values.idProof
+    }
 
     try {
 
@@ -582,6 +642,11 @@ function App() {
         URL.revokeObjectURL(photoPreview)
       }
       setPhotoPreview('')
+      if (idProofPreview) {
+        URL.revokeObjectURL(idProofPreview)
+      }
+      setIdProofPreview('')
+      setIdProofPreviewType('')
       setResetFormKey((prev) => prev + 1)
       // window.location.href = 'https://srimadhusudansai.com/'
     }
@@ -705,7 +770,7 @@ function App() {
                 aria-hidden="true"
               />
               <div className="photo-actions">
-                <button type="button" className="ghost-btn" onClick={openCamera}>
+                <button type="button" className="ghost-btn" onClick={(event) => openCamera(event, 'photo')}>
                   Open Camera
                 </button>
               </div>
@@ -745,6 +810,73 @@ function App() {
                     className="remove-photo-btn"
                     onClick={removePhoto}
                     aria-label="Remove photo"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="field file-field">
+              <label>
+                <span className="label">ID Proof</span>
+                <input
+                  key={`idProof-${resetFormKey}`}
+                  type="file"
+                  name="idProof"
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  accept="image/*,.pdf,application/pdf"
+                />
+              </label>
+              <input
+                ref={idProofCameraCaptureInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleIdProofCameraCaptureFileChange}
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+              <div className="photo-actions">
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={(event) => openCamera(event, 'idProof')}
+                >
+                  Open Camera
+                </button>
+              </div>
+              {idProofPreview && idProofPreviewType.startsWith('image/') && (
+                <div className="photo-preview">
+                  <img src={idProofPreview} alt="Captured ID proof" />
+                  <button
+                    type="button"
+                    className="remove-photo-btn"
+                    onClick={removeIdProof}
+                    aria-label="Remove ID proof"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              {idProofPreview && !idProofPreviewType.startsWith('image/') && (
+                <div className="file-preview">
+                  {idProofPreviewType === 'application/pdf' ? (
+                    <iframe
+                      src={idProofPreview}
+                      title="ID proof PDF preview"
+                      className="pdf-preview"
+                    />
+                  ) : (
+                    <span className="file-preview-name">{values.idProof?.name || 'ID proof selected'}</span>
+                  )}
+                  <button
+                    type="button"
+                    className="remove-photo-btn"
+                    onClick={removeIdProof}
+                    aria-label="Remove ID proof"
                   >
                     ×
                   </button>
@@ -976,17 +1108,16 @@ function App() {
                       aria-invalid={Boolean(showVehicleError(index, 'type'))}
                     >
                       <option value="">Select</option>
-                      <option value="two-wheeler">Two Wheeler</option>
-                      <option value="car">Car</option>
-                      <option value="auto-rickshaw">Auto Rickshaw</option>
-                      <option value="truck">Truck</option>
-                      <option value="taxi/cab">Taxi / Cab</option>
-                      <option value="van">Van</option>
-                      <option value="bus">Bus</option>
-                      <option value="mini-bus">Mini Bus</option>
-                      <option value="tractor">Tractor</option>
-                      <option value="construction-vehicle">Construction Vehicle</option>
-                      <option value="other">Other</option>
+                      <option value="Two-Wheeler">Two-Wheeler</option>
+                      <option value="Car">Car</option>
+                      <option value="Auto Rickshaw">Auto Rickshaw</option>
+                      <option value="Taxi / Cab">Taxi / Cab</option>
+                      <option value="Van">Van</option>
+                      <option value="Bus">Bus</option>
+                      <option value="Mini Bus">Mini Bus</option>
+                      <option value="Tractor">Tractor</option>
+                      <option value="Construction Vehicle">Construction Vehicle</option>
+                      <option value="Other">Other</option>
                     </select>
                     {showVehicleError(index, 'type') && (
                       <span className="error">{errors.vehicles[index].type}</span>
@@ -1020,11 +1151,21 @@ function App() {
                 URL.revokeObjectURL(photoPreview)
               }
               setPhotoPreview('')
+              if (idProofPreview) {
+                URL.revokeObjectURL(idProofPreview)
+              }
+              setIdProofPreview('')
+              setIdProofPreviewType('')
               // Clear file inputs
               const photoInput = document.querySelector('input[name="photo"]')
               if (photoInput) photoInput.value = ''
+              const idProofInput = document.querySelector('input[name="idProof"]')
+              if (idProofInput) idProofInput.value = ''
               if (cameraCaptureInputRef.current) {
                 cameraCaptureInputRef.current.value = ''
+              }
+              if (idProofCameraCaptureInputRef.current) {
+                idProofCameraCaptureInputRef.current.value = ''
               }
             }}
           >

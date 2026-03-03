@@ -386,6 +386,32 @@ select[aria-invalid='true'] {
   object-fit: cover;
 }
 
+.file-preview {
+  margin-top: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #d0c8bc;
+  background: #fdfaf6;
+  position: relative;
+  min-height: 120px;
+  padding: 0.9rem 3rem 0.9rem 0.9rem;
+  display: flex;
+  align-items: center;
+}
+
+.file-preview-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.pdf-preview {
+  width: 100%;
+  height: 220px;
+  border: none;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .remove-photo-btn {
   position: absolute;
   top: 0.75rem;
