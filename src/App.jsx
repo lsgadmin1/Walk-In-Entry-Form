@@ -9,7 +9,7 @@ const initialValues = {
   phone: '91',
   email: '',
   photo: null,
-  idProof: null,
+  aadhaarPassport: null,
   gender: '',
   arrival: '',
   departure: '',
@@ -156,6 +156,31 @@ const formatVehicleNumber = (value) => {
 }
 
 const VEHICLE_NUMBER_REGEX = /^[A-Z]{2} \d{1,2} [A-Z]{1,3} \d{1,4}$/
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
+
+const validateUploadFile = (file, fieldName) => {
+  if (!file) return ''
+  if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+    return 'File size must be less than 5 MB.'
+  }
+
+  if (fieldName === 'photo') {
+    if (!file.type.startsWith('image/')) {
+      return 'Visitor Photo must be an image file.'
+    }
+    return ''
+  }
+
+  if (fieldName === 'aadhaarPassport') {
+    const isImage = file.type.startsWith('image/')
+    const isPdf = file.type === 'application/pdf'
+    if (!isImage && !isPdf) {
+      return 'Aadhaar / Passport must be an image or PDF file.'
+    }
+  }
+
+  return ''
+}
 
 
 const buildFormData = (payload) => {
@@ -185,11 +210,12 @@ function App() {
     arrival: nowValue,
   }))
   const [photoPreview, setPhotoPreview] = useState('')
-  const [idProofPreview, setIdProofPreview] = useState('')
-  const [idProofPreviewType, setIdProofPreviewType] = useState('')
+  const [aadhaarPassportPreview, setAadhaarPassportPreview] = useState('')
+  const [aadhaarPassportPreviewType, setAadhaarPassportPreviewType] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraTarget, setCameraTarget] = useState('photo')
   const [cameraError, setCameraError] = useState('')
+  const [fileErrors, setFileErrors] = useState({ photo: '', aadhaarPassport: '' })
   const [cameraStream, setCameraStream] = useState(null)
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
@@ -202,7 +228,7 @@ function App() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const cameraCaptureInputRef = useRef(null)
-  const idProofCameraCaptureInputRef = useRef(null)
+  const aadhaarPassportCameraCaptureInputRef = useRef(null)
   const departureRef = useRef(null)
 
   const [env, setEnv] = useState('production')
@@ -260,18 +286,43 @@ function App() {
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
       }
-      if (idProofPreview) {
-        URL.revokeObjectURL(idProofPreview)
+      if (aadhaarPassportPreview) {
+        URL.revokeObjectURL(aadhaarPassportPreview)
       }
       if (cameraStream) {
         cameraStream.getTracks().forEach((track) => track.stop())
       }
     }
-  }, [photoPreview, idProofPreview, cameraStream])
+  }, [photoPreview, aadhaarPassportPreview, cameraStream])
 
   const handleChange = (event) => {
     const { name, value, type, files } = event.target
     const nextValue = type === 'file' ? files[0] || null : value
+
+    if (type === 'file' && (name === 'photo' || name === 'aadhaarPassport')) {
+      const validationError = validateUploadFile(nextValue, name)
+      if (validationError) {
+        setFileErrors((prev) => ({ ...prev, [name]: validationError }))
+        if (name === 'photo') {
+          if (photoPreview) {
+            URL.revokeObjectURL(photoPreview)
+          }
+          setPhotoPreview('')
+        }
+        if (name === 'aadhaarPassport') {
+          if (aadhaarPassportPreview) {
+            URL.revokeObjectURL(aadhaarPassportPreview)
+          }
+          setAadhaarPassportPreview('')
+          setAadhaarPassportPreviewType('')
+        }
+        setValues((prev) => ({ ...prev, [name]: null }))
+        event.target.value = ''
+        return
+      }
+      setFileErrors((prev) => ({ ...prev, [name]: '' }))
+    }
+
     let nextValues = { ...values, [name]: nextValue }
 
     if (name === 'fullName') {
@@ -300,12 +351,12 @@ function App() {
       setPhotoPreview(nextValue ? URL.createObjectURL(nextValue) : '')
     }
 
-    if (name === 'idProof') {
-      if (idProofPreview) {
-        URL.revokeObjectURL(idProofPreview)
+    if (name === 'aadhaarPassport') {
+      if (aadhaarPassportPreview) {
+        URL.revokeObjectURL(aadhaarPassportPreview)
       }
-      setIdProofPreview(nextValue ? URL.createObjectURL(nextValue) : '')
-      setIdProofPreviewType(nextValue ? nextValue.type || '' : '')
+      setAadhaarPassportPreview(nextValue ? URL.createObjectURL(nextValue) : '')
+      setAadhaarPassportPreviewType(nextValue ? nextValue.type || '' : '')
     }
 
     setValues(nextValues)
@@ -387,8 +438,8 @@ function App() {
     setCameraTarget(target)
     setCameraError('')
     if (!navigator.mediaDevices?.getUserMedia) {
-      const fallbackInput = target === 'idProof'
-        ? idProofCameraCaptureInputRef.current
+      const fallbackInput = target === 'aadhaarPassport'
+        ? aadhaarPassportCameraCaptureInputRef.current
         : cameraCaptureInputRef.current
       if (fallbackInput) {
         fallbackInput.click()
@@ -457,17 +508,25 @@ function App() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     canvas.toBlob((blob) => {
       if (!blob) return
-      const fileNamePrefix = cameraTarget === 'idProof' ? 'id-proof' : 'visitor-photo'
+      const fileNamePrefix = cameraTarget === 'aadhaarPassport' ? 'aadhaar-or-passport' : 'visitor-photo'
       const file = new File([blob], `${fileNamePrefix}-${Date.now()}.jpg`, {
         type: 'image/jpeg',
       })
-      if (cameraTarget === 'idProof') {
-        if (idProofPreview) {
-          URL.revokeObjectURL(idProofPreview)
+      const targetField = cameraTarget === 'aadhaarPassport' ? 'aadhaarPassport' : 'photo'
+      const validationError = validateUploadFile(file, targetField)
+      if (validationError) {
+        setFileErrors((prev) => ({ ...prev, [targetField]: validationError }))
+        stopCamera()
+        return
+      }
+      setFileErrors((prev) => ({ ...prev, [targetField]: '' }))
+      if (cameraTarget === 'aadhaarPassport') {
+        if (aadhaarPassportPreview) {
+          URL.revokeObjectURL(aadhaarPassportPreview)
         }
-        setIdProofPreview(URL.createObjectURL(file))
-        setIdProofPreviewType(file.type)
-        setValues((prev) => ({ ...prev, idProof: file }))
+        setAadhaarPassportPreview(URL.createObjectURL(file))
+        setAadhaarPassportPreviewType(file.type)
+        setValues((prev) => ({ ...prev, aadhaarPassport: file }))
       } else {
         if (photoPreview) {
           URL.revokeObjectURL(photoPreview)
@@ -482,6 +541,14 @@ function App() {
   const handleCameraCaptureFileChange = (event) => {
     const file = event.target.files?.[0] || null
     if (!file) return
+    const validationError = validateUploadFile(file, 'photo')
+    if (validationError) {
+      setFileErrors((prev) => ({ ...prev, photo: validationError }))
+      setValues((prev) => ({ ...prev, photo: null }))
+      event.target.value = ''
+      return
+    }
+    setFileErrors((prev) => ({ ...prev, photo: '' }))
     if (photoPreview) {
       URL.revokeObjectURL(photoPreview)
     }
@@ -490,15 +557,23 @@ function App() {
     event.target.value = ''
   }
 
-  const handleIdProofCameraCaptureFileChange = (event) => {
+  const handleAadhaarPassportCameraCaptureFileChange = (event) => {
     const file = event.target.files?.[0] || null
     if (!file) return
-    if (idProofPreview) {
-      URL.revokeObjectURL(idProofPreview)
+    const validationError = validateUploadFile(file, 'aadhaarPassport')
+    if (validationError) {
+      setFileErrors((prev) => ({ ...prev, aadhaarPassport: validationError }))
+      setValues((prev) => ({ ...prev, aadhaarPassport: null }))
+      event.target.value = ''
+      return
     }
-    setIdProofPreview(URL.createObjectURL(file))
-    setIdProofPreviewType(file.type || '')
-    setValues((prev) => ({ ...prev, idProof: file }))
+    setFileErrors((prev) => ({ ...prev, aadhaarPassport: '' }))
+    if (aadhaarPassportPreview) {
+      URL.revokeObjectURL(aadhaarPassportPreview)
+    }
+    setAadhaarPassportPreview(URL.createObjectURL(file))
+    setAadhaarPassportPreviewType(file.type || '')
+    setValues((prev) => ({ ...prev, aadhaarPassport: file }))
     event.target.value = ''
   }
 
@@ -507,6 +582,7 @@ function App() {
       URL.revokeObjectURL(photoPreview)
     }
     setPhotoPreview('')
+    setFileErrors((prev) => ({ ...prev, photo: '' }))
     setValues((prev) => ({ ...prev, photo: null }))
     // Clear file inputs
     const photoInput = document.querySelector('input[name="photo"]')
@@ -516,17 +592,18 @@ function App() {
     }
   }
 
-  const removeIdProof = () => {
-    if (idProofPreview) {
-      URL.revokeObjectURL(idProofPreview)
+  const removeAadhaarPassport = () => {
+    if (aadhaarPassportPreview) {
+      URL.revokeObjectURL(aadhaarPassportPreview)
     }
-    setIdProofPreview('')
-    setIdProofPreviewType('')
-    setValues((prev) => ({ ...prev, idProof: null }))
-    const idProofInput = document.querySelector('input[name="idProof"]')
-    if (idProofInput) idProofInput.value = ''
-    if (idProofCameraCaptureInputRef.current) {
-      idProofCameraCaptureInputRef.current.value = ''
+    setAadhaarPassportPreview('')
+    setAadhaarPassportPreviewType('')
+    setFileErrors((prev) => ({ ...prev, aadhaarPassport: '' }))
+    setValues((prev) => ({ ...prev, aadhaarPassport: null }))
+    const aadhaarPassportInput = document.querySelector('input[name="aadhaarPassport"]')
+    if (aadhaarPassportInput) aadhaarPassportInput.value = ''
+    if (aadhaarPassportCameraCaptureInputRef.current) {
+      aadhaarPassportCameraCaptureInputRef.current.value = ''
     }
   }
 
@@ -586,8 +663,8 @@ function App() {
     if (values.photo) {
       submissionData.Visitor_s_Photo = values.photo
     }
-    if (values.idProof) {
-      submissionData.Aadhaar_or_Passport = values.idProof
+    if (values.aadhaarPassport) {
+      submissionData.Aadhaar_or_Passport = values.aadhaarPassport
     }
 
     try {
@@ -637,16 +714,17 @@ function App() {
       setTouched({})
       setTouchedVehicles([])
       setCameraError('')
+      setFileErrors({ photo: '', aadhaarPassport: '' })
       stopCamera()
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
       }
       setPhotoPreview('')
-      if (idProofPreview) {
-        URL.revokeObjectURL(idProofPreview)
+      if (aadhaarPassportPreview) {
+        URL.revokeObjectURL(aadhaarPassportPreview)
       }
-      setIdProofPreview('')
-      setIdProofPreviewType('')
+      setAadhaarPassportPreview('')
+      setAadhaarPassportPreviewType('')
       setResetFormKey((prev) => prev + 1)
       // window.location.href = 'https://srimadhusudansai.com/'
     }
@@ -774,6 +852,7 @@ function App() {
                   Open Camera
                 </button>
               </div>
+              {fileErrors.photo && <span className="error">{fileErrors.photo}</span>}
               {cameraError && <span className="error">{cameraError}</span>}
               {cameraOpen && (
                 <div className="camera-modal-overlay">
@@ -821,21 +900,21 @@ function App() {
               <label>
                 <span className="label">Aadhaar / Passport</span>
                 <input
-                  key={`idProof-${resetFormKey}`}
+                  key={`aadhaarPassport-${resetFormKey}`}
                   type="file"
-                  name="idProof"
+                  name="aadhaarPassport"
                   onChange={handleChange}
                   onBlur={handleBlur}
                   accept="image/*,.pdf,application/pdf"
                 />
               </label>
               <input
-                ref={idProofCameraCaptureInputRef}
+                ref={aadhaarPassportCameraCaptureInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
                 className="hidden"
-                onChange={handleIdProofCameraCaptureFileChange}
+                onChange={handleAadhaarPassportCameraCaptureFileChange}
                 tabIndex={-1}
                 aria-hidden="true"
               />
@@ -843,40 +922,41 @@ function App() {
                 <button
                   type="button"
                   className="ghost-btn"
-                  onClick={(event) => openCamera(event, 'idProof')}
+                  onClick={(event) => openCamera(event, 'aadhaarPassport')}
                 >
                   Open Camera
                 </button>
               </div>
-              {idProofPreview && idProofPreviewType.startsWith('image/') && (
+              {fileErrors.aadhaarPassport && <span className="error">{fileErrors.aadhaarPassport}</span>}
+              {aadhaarPassportPreview && aadhaarPassportPreviewType.startsWith('image/') && (
                 <div className="photo-preview">
-                  <img src={idProofPreview} alt="Captured ID proof" />
+                  <img src={aadhaarPassportPreview} alt="Captured Aadhaar or Passport" />
                   <button
                     type="button"
                     className="remove-photo-btn"
-                    onClick={removeIdProof}
-                    aria-label="Remove ID proof"
+                    onClick={removeAadhaarPassport}
+                    aria-label="Remove Aadhaar or Passport"
                   >
                     ×
                   </button>
                 </div>
               )}
-              {idProofPreview && !idProofPreviewType.startsWith('image/') && (
+              {aadhaarPassportPreview && !aadhaarPassportPreviewType.startsWith('image/') && (
                 <div className="file-preview">
-                  {idProofPreviewType === 'application/pdf' ? (
+                  {aadhaarPassportPreviewType === 'application/pdf' ? (
                     <iframe
-                      src={idProofPreview}
-                      title="ID proof PDF preview"
+                      src={aadhaarPassportPreview}
+                      title="Aadhaar or Passport PDF preview"
                       className="pdf-preview"
                     />
                   ) : (
-                    <span className="file-preview-name">{values.idProof?.name || 'ID proof selected'}</span>
+                    <span className="file-preview-name">{values.aadhaarPassport?.name || 'Aadhaar or Passport selected'}</span>
                   )}
                   <button
                     type="button"
                     className="remove-photo-btn"
-                    onClick={removeIdProof}
-                    aria-label="Remove ID proof"
+                    onClick={removeAadhaarPassport}
+                    aria-label="Remove Aadhaar or Passport"
                   >
                     ×
                   </button>
@@ -1146,26 +1226,27 @@ function App() {
               setTouched({})
               setTouchedVehicles([])
               setCameraError('')
+              setFileErrors({ photo: '', aadhaarPassport: '' })
               stopCamera()
               if (photoPreview) {
                 URL.revokeObjectURL(photoPreview)
               }
               setPhotoPreview('')
-              if (idProofPreview) {
-                URL.revokeObjectURL(idProofPreview)
+              if (aadhaarPassportPreview) {
+                URL.revokeObjectURL(aadhaarPassportPreview)
               }
-              setIdProofPreview('')
-              setIdProofPreviewType('')
+              setAadhaarPassportPreview('')
+              setAadhaarPassportPreviewType('')
               // Clear file inputs
               const photoInput = document.querySelector('input[name="photo"]')
               if (photoInput) photoInput.value = ''
-              const idProofInput = document.querySelector('input[name="idProof"]')
-              if (idProofInput) idProofInput.value = ''
+              const aadhaarPassportInput = document.querySelector('input[name="aadhaarPassport"]')
+              if (aadhaarPassportInput) aadhaarPassportInput.value = ''
               if (cameraCaptureInputRef.current) {
                 cameraCaptureInputRef.current.value = ''
               }
-              if (idProofCameraCaptureInputRef.current) {
-                idProofCameraCaptureInputRef.current.value = ''
+              if (aadhaarPassportCameraCaptureInputRef.current) {
+                aadhaarPassportCameraCaptureInputRef.current.value = ''
               }
             }}
           >
