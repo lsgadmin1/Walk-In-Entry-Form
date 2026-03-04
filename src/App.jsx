@@ -277,7 +277,6 @@ function App() {
   const [aadhaarPassportPreviewType, setAadhaarPassportPreviewType] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraTarget, setCameraTarget] = useState('photo')
-  const [cameraError, setCameraError] = useState('')
   const [fileErrors, setFileErrors] = useState({ photo: '', aadhaarPassport: '' })
   const [cameraStream, setCameraStream] = useState(null)
   const [errors, setErrors] = useState({})
@@ -336,6 +335,16 @@ function App() {
 
   const updateErrors = (nextValues) => {
     setErrors(validate(nextValues))
+  }
+
+  const showCameraErrorModal = (message, target = '') => {
+    const targetLabel = target === 'aadhaarPassport' ? 'Aadhaar / Passport' : 'Visitor Photo'
+    setModalData({
+      type: 'error',
+      title: 'Camera Error',
+      message: target ? `${targetLabel}: ${message}` : message,
+    })
+    setShowModal(true)
   }
 
   useEffect(() => {
@@ -501,7 +510,6 @@ function App() {
       event.stopPropagation()
     }
     setCameraTarget(target)
-    setCameraError('')
     if (!navigator.mediaDevices?.getUserMedia) {
       const fallbackInput = target === 'aadhaarPassport'
         ? aadhaarPassportCameraCaptureInputRef.current
@@ -510,7 +518,10 @@ function App() {
         fallbackInput.click()
         return
       }
-      setCameraError('Unable to access camera in this browser. Try using HTTPS or a different browser.')
+      showCameraErrorModal(
+        'Unable to access camera in this browser. Try using HTTPS or a different browser.',
+        target,
+      )
       return
     }
     try {
@@ -522,22 +533,22 @@ function App() {
       setCameraOpen(true)
     } catch (error) {
       if (error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError') {
-        setCameraError('Camera permission was denied. Please allow access and try again.')
+        showCameraErrorModal('Camera permission was denied. Please allow access and try again.', target)
         return
       }
       if (error?.name === 'NotFoundError' || error?.name === 'DevicesNotFoundError') {
-        setCameraError('No camera  was found on this device.')
+        showCameraErrorModal('No camera was found on this device.', target)
         return
       }
       if (error?.name === 'NotReadableError' || error?.name === 'TrackStartError') {
-        setCameraError('Camera is currently in use by another app. Close it and try again.')
+        showCameraErrorModal('Camera is currently in use by another app. Close it and try again.', target)
         return
       }
       if (error?.name === 'SecurityError') {
-        setCameraError('Camera access requires a secure connection (HTTPS).')
+        showCameraErrorModal('Camera access requires a secure connection (HTTPS).', target)
         return
       }
-      setCameraError('Unable to start camera. Please try again.')
+      showCameraErrorModal('Unable to start camera. Please try again.', target)
     }
   }
 
@@ -547,7 +558,6 @@ function App() {
     }
     const newFacingMode = facingMode === 'user' ? 'environment' : 'user'
     setFacingMode(newFacingMode)
-    setCameraError('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: newFacingMode },
@@ -555,7 +565,7 @@ function App() {
       })
       setCameraStream(stream)
     } catch (error) {
-      setCameraError('Unable to switch camera. Please try again.')
+      showCameraErrorModal('Unable to switch camera. Please try again.', cameraTarget)
       setCameraStream(null)
       setCameraOpen(false)
     }
@@ -812,7 +822,6 @@ function App() {
       setErrors({})
       setTouched({})
       setTouchedVehicles([])
-      setCameraError('')
       setFileErrors({ photo: '', aadhaarPassport: '' })
       stopCamera()
       if (photoPreview) {
@@ -957,7 +966,6 @@ function App() {
                 aria-hidden="true"
               />
               {fileErrors.photo && <span className="error">{fileErrors.photo}</span>}
-              {cameraError && <span className="error">{cameraError}</span>}
               {cameraOpen && (
                 <div className="camera-modal-overlay">
                   <div className="camera-modal-content">
@@ -1351,7 +1359,6 @@ function App() {
               setErrors({})
               setTouched({})
               setTouchedVehicles([])
-              setCameraError('')
               setFileErrors({ photo: '', aadhaarPassport: '' })
               stopCamera()
               if (photoPreview) {
