@@ -26,8 +26,12 @@ const validate = (values) => {
 
   if (!values.fullName.trim()) {
     errors.fullName = 'Full name is required.'
-  } else if (values.fullName.trim().length < 2) {
-    errors.fullName = 'Full name must be at least 2 characters.'
+  } else if (values.fullName.trim().length < 3) {
+    errors.fullName = 'Full name must be at least 3 characters.'
+  } else if (values.fullName.trim().length > 30) {
+    errors.fullName = 'Full name must not exceed 30 characters.'
+  } else if (!/^[a-zA-Z\s]*$/.test(values.fullName.trim())) {
+    errors.fullName = 'Full name must contain only alphabets and spaces.'
   }
 
   const phoneDigits = values.phone.trim()
@@ -44,11 +48,19 @@ const validate = (values) => {
   if (!values.gender) errors.gender = 'Select a gender.'
 
   if (!values.departure) {
-    errors.departure = 'Departure date-time is required.'
-  } else if (values.departure <= getNowDateTimeLocal()) {
-    errors.departure = 'Departure must be a future date-time.'
-  } else if (values.arrival && values.departure <= values.arrival) {
-    errors.departure = 'Departure must be after arrival.'
+    errors.departure = 'Departure time is required.'
+  } else {
+    const now = new Date()
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const [depDate, depTime] = values.departure.split('T')
+    const [arrDate] = (values.arrival || '').split('T')
+    if (depDate !== arrDate) {
+      errors.departure = 'Departure date must be same as arrival date.'
+    } else if (depTime <= currentTime) {
+      errors.departure = 'Departure time must be greater than current time.'
+    } else if (depTime >= '21:30') {
+      errors.departure = 'Departure time must be before 09:30 PM.'
+    }
   }
 
   if (!values.members) errors.members = 'Select member type.'
@@ -81,7 +93,7 @@ const validate = (values) => {
       const vehicleErrors = {}
       if (!vehicle.number.trim()) vehicleErrors.number = 'Vehicle number is required.'
       else if (!VEHICLE_NUMBER_REGEX.test(vehicle.number.trim())) {
-        vehicleErrors.number = 'Use format: KA 01 AB 1234'
+        vehicleErrors.number = 'Vehicle number must be 4-15 uppercase alphanumeric characters.'
       }
       if (!vehicle.type) vehicleErrors.type = 'Select a vehicle type.'
       return vehicleErrors
@@ -90,6 +102,10 @@ const validate = (values) => {
       (vehicleErrors) => Object.keys(vehicleErrors).length > 0,
     )
     if (hasVehicleErrors) errors.vehicles = vehicleErrorsList
+  }
+
+  if (values.vehicles.length > MAX_VEHICLES) {
+    errors.vehiclesLimit = `You can add up to ${MAX_VEHICLES} vehicles only.`
   }
 
   return errors
@@ -146,17 +162,11 @@ const formatVehicleType = (value) => {
   return toTitleCase(value.replace(/-/g, ' '))
 }
 
-const formatVehicleNumber = (value) => {
-  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
-  const match = cleaned.match(/^([A-Z]{0,2})(\d{0,2})([A-Z]{0,3})(\d{0,4}).*$/)
-  if (!match) return ''
-  const [, stateCode, districtCode, series, uniqueNumber] = match
-  // const paddedDistrict = districtCode.length === 1 ? districtCode.padStart(2, '0') : districtCode
-  return [stateCode, districtCode, series, uniqueNumber].filter(Boolean).join(' ')
-}
-
-const VEHICLE_NUMBER_REGEX = /^[A-Z]{2} \d{1,2} [A-Z]{1,3} \d{1,4}$/
+const VEHICLE_NUMBER_REGEX = /^[A-Z0-9]{4,15}$/
+const MAX_VEHICLES = 5
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
+const MAX_CAMERA_IMAGE_DIMENSION = 1600
+const CAMERA_IMAGE_QUALITY = 0.82
 
 const validateUploadFile = (file, fieldName) => {
   if (!file) return ''
@@ -180,6 +190,59 @@ const validateUploadFile = (file, fieldName) => {
   }
 
   return ''
+}
+
+const loadImageElement = (file) =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(image)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Unable to read selected image.'))
+    }
+    image.src = objectUrl
+  })
+
+const canvasToJpegBlob = (canvas, quality) =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Unable to process image.'))
+        return
+      }
+      resolve(blob)
+    }, 'image/jpeg', quality)
+  })
+
+const compressImageFile = async (file, fileNamePrefix) => {
+  if (!file.type.startsWith('image/')) {
+    return file
+  }
+
+  const image = await loadImageElement(file)
+  const canvas = document.createElement('canvas')
+  const scale = Math.min(1, MAX_CAMERA_IMAGE_DIMENSION / Math.max(image.width, image.height))
+  canvas.width = Math.max(1, Math.round(image.width * scale))
+  canvas.height = Math.max(1, Math.round(image.height * scale))
+
+  const context = canvas.getContext('2d')
+  if (!context) return file
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+  let quality = CAMERA_IMAGE_QUALITY
+  let blob = await canvasToJpegBlob(canvas, quality)
+
+  while (blob.size > MAX_UPLOAD_SIZE_BYTES && quality > 0.5) {
+    quality -= 0.1
+    blob = await canvasToJpegBlob(canvas, quality)
+  }
+
+  return new File([blob], `${fileNamePrefix}-${Date.now()}.jpg`, { type: 'image/jpeg' })
 }
 
 
@@ -303,20 +366,6 @@ function App() {
       const validationError = validateUploadFile(nextValue, name)
       if (validationError) {
         setFileErrors((prev) => ({ ...prev, [name]: validationError }))
-        if (name === 'photo') {
-          if (photoPreview) {
-            URL.revokeObjectURL(photoPreview)
-          }
-          setPhotoPreview('')
-        }
-        if (name === 'aadhaarPassport') {
-          if (aadhaarPassportPreview) {
-            URL.revokeObjectURL(aadhaarPassportPreview)
-          }
-          setAadhaarPassportPreview('')
-          setAadhaarPassportPreviewType('')
-        }
-        setValues((prev) => ({ ...prev, [name]: null }))
         event.target.value = ''
         return
       }
@@ -367,16 +416,22 @@ function App() {
   }
 
   const handleVehicleChange = (index, field, value) => {
-    const nextValue = field === 'number' ? formatVehicleNumber(value) : value
-    const vehicles = values.vehicles.map((vehicle, vehicleIndex) =>
-      vehicleIndex === index ? { ...vehicle, [field]: nextValue } : vehicle,
-    )
-    const nextValues = { ...values, vehicles }
-    setValues(nextValues)
+    const nextValue =
+      field === 'number'
+        ? value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15)
+        : value
+    setValues((prev) => {
+      const vehicles = prev.vehicles.map((vehicle, vehicleIndex) =>
+        vehicleIndex === index ? { ...vehicle, [field]: nextValue } : vehicle,
+      )
+      const nextValues = { ...prev, vehicles }
 
-    if (touchedVehicles[index]?.[field]) {
-      updateErrors(nextValues)
-    }
+      if (touchedVehicles[index]?.[field]) {
+        updateErrors(nextValues)
+      }
+
+      return nextValues
+    })
   }
 
   const handleVehicleBlur = (index, field) => {
@@ -389,6 +444,10 @@ function App() {
   }
 
   const addVehicle = () => {
+    if (values.vehicles.length >= MAX_VEHICLES) {
+      return
+    }
+
     setValues((prev) => ({
       ...prev,
       vehicles: [...prev.vehicles, { number: '', type: '' }],
@@ -423,7 +482,10 @@ function App() {
   }
 
   const stopCamera = (event) => {
-    if (event) event.stopPropagation()
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop())
     }
@@ -434,7 +496,10 @@ function App() {
   }
 
   const openCamera = async (event, target = 'photo') => {
-    if (event) event.stopPropagation()
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
     setCameraTarget(target)
     setCameraError('')
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -496,85 +561,119 @@ function App() {
     }
   }
 
-  const capturePhoto = (event) => {
-    if (event) event.stopPropagation()
+  const capturePhoto = async (event) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
     if (!videoRef.current || !canvasRef.current) return
     const video = videoRef.current
     const canvas = canvasRef.current
-    canvas.width = video.videoWidth || 640
-    canvas.height = video.videoHeight || 480
+    const sourceWidth = video.videoWidth || 640
+    const sourceHeight = video.videoHeight || 480
+    const scale = Math.min(1, MAX_CAMERA_IMAGE_DIMENSION / Math.max(sourceWidth, sourceHeight))
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale))
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale))
     const context = canvas.getContext('2d')
     if (!context) return
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (!blob) return
-      const fileNamePrefix = cameraTarget === 'aadhaarPassport' ? 'aadhaar-or-passport' : 'visitor-photo'
-      const file = new File([blob], `${fileNamePrefix}-${Date.now()}.jpg`, {
-        type: 'image/jpeg',
-      })
-      const targetField = cameraTarget === 'aadhaarPassport' ? 'aadhaarPassport' : 'photo'
-      const validationError = validateUploadFile(file, targetField)
-      if (validationError) {
-        setFileErrors((prev) => ({ ...prev, [targetField]: validationError }))
+      try {
+        const fileNamePrefix = cameraTarget === 'aadhaarPassport' ? 'aadhaar-or-passport' : 'visitor-photo'
+        let file = new File([blob], `${fileNamePrefix}-${Date.now()}.jpg`, {
+          type: 'image/jpeg',
+        })
+        file = await compressImageFile(file, fileNamePrefix)
+        const targetField = cameraTarget === 'aadhaarPassport' ? 'aadhaarPassport' : 'photo'
+        const validationError = validateUploadFile(file, targetField)
+        if (validationError) {
+          setFileErrors((prev) => ({ ...prev, [targetField]: validationError }))
+          stopCamera()
+          return
+        }
+        setFileErrors((prev) => ({ ...prev, [targetField]: '' }))
+        if (cameraTarget === 'aadhaarPassport') {
+          if (aadhaarPassportPreview) {
+            URL.revokeObjectURL(aadhaarPassportPreview)
+          }
+          setAadhaarPassportPreview(URL.createObjectURL(file))
+          setAadhaarPassportPreviewType(file.type)
+          setValues((prev) => ({ ...prev, aadhaarPassport: file }))
+        } else {
+          if (photoPreview) {
+            URL.revokeObjectURL(photoPreview)
+          }
+          setPhotoPreview(URL.createObjectURL(file))
+          setValues((prev) => ({ ...prev, photo: file }))
+        }
         stopCamera()
+      } catch (error) {
+        const targetField = cameraTarget === 'aadhaarPassport' ? 'aadhaarPassport' : 'photo'
+        setFileErrors((prev) => ({
+          ...prev,
+          [targetField]: 'Unable to process camera image. Please try again.',
+        }))
+        stopCamera()
+      }
+    }, 'image/jpeg', CAMERA_IMAGE_QUALITY)
+  }
+
+  const handleCameraCaptureFileChange = async (event) => {
+    try {
+      const selectedFile = event.target.files?.[0] || null
+      if (!selectedFile) return
+      const file = await compressImageFile(selectedFile, 'visitor-photo')
+      const validationError = validateUploadFile(file, 'photo')
+      if (validationError) {
+        setFileErrors((prev) => ({ ...prev, photo: validationError }))
+        event.target.value = ''
         return
       }
-      setFileErrors((prev) => ({ ...prev, [targetField]: '' }))
-      if (cameraTarget === 'aadhaarPassport') {
-        if (aadhaarPassportPreview) {
-          URL.revokeObjectURL(aadhaarPassportPreview)
-        }
-        setAadhaarPassportPreview(URL.createObjectURL(file))
-        setAadhaarPassportPreviewType(file.type)
-        setValues((prev) => ({ ...prev, aadhaarPassport: file }))
-      } else {
-        if (photoPreview) {
-          URL.revokeObjectURL(photoPreview)
-        }
-        setPhotoPreview(URL.createObjectURL(file))
-        setValues((prev) => ({ ...prev, photo: file }))
+      setFileErrors((prev) => ({ ...prev, photo: '' }))
+      if (photoPreview) {
+        URL.revokeObjectURL(photoPreview)
       }
-      stopCamera()
-    }, 'image/jpeg', 0.9)
+      setPhotoPreview(URL.createObjectURL(file))
+      setValues((prev) => ({ ...prev, photo: file }))
+      event.target.value = ''
+    } catch (error) {
+      setFileErrors((prev) => ({
+        ...prev,
+        photo: 'Unable to process selected image. Please try again.',
+      }))
+      event.target.value = ''
+    }
   }
 
-  const handleCameraCaptureFileChange = (event) => {
-    const file = event.target.files?.[0] || null
-    if (!file) return
-    const validationError = validateUploadFile(file, 'photo')
-    if (validationError) {
-      setFileErrors((prev) => ({ ...prev, photo: validationError }))
-      setValues((prev) => ({ ...prev, photo: null }))
+  const handleAadhaarPassportCameraCaptureFileChange = async (event) => {
+    try {
+      const selectedFile = event.target.files?.[0] || null
+      if (!selectedFile) return
+      const file = selectedFile.type.startsWith('image/')
+        ? await compressImageFile(selectedFile, 'aadhaar-or-passport')
+        : selectedFile
+      const validationError = validateUploadFile(file, 'aadhaarPassport')
+      if (validationError) {
+        setFileErrors((prev) => ({ ...prev, aadhaarPassport: validationError }))
+        event.target.value = ''
+        return
+      }
+      setFileErrors((prev) => ({ ...prev, aadhaarPassport: '' }))
+      if (aadhaarPassportPreview) {
+        URL.revokeObjectURL(aadhaarPassportPreview)
+      }
+      setAadhaarPassportPreview(URL.createObjectURL(file))
+      setAadhaarPassportPreviewType(file.type || '')
+      setValues((prev) => ({ ...prev, aadhaarPassport: file }))
       event.target.value = ''
-      return
-    }
-    setFileErrors((prev) => ({ ...prev, photo: '' }))
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview)
-    }
-    setPhotoPreview(URL.createObjectURL(file))
-    setValues((prev) => ({ ...prev, photo: file }))
-    event.target.value = ''
-  }
-
-  const handleAadhaarPassportCameraCaptureFileChange = (event) => {
-    const file = event.target.files?.[0] || null
-    if (!file) return
-    const validationError = validateUploadFile(file, 'aadhaarPassport')
-    if (validationError) {
-      setFileErrors((prev) => ({ ...prev, aadhaarPassport: validationError }))
-      setValues((prev) => ({ ...prev, aadhaarPassport: null }))
+    } catch (error) {
+      setFileErrors((prev) => ({
+        ...prev,
+        aadhaarPassport: 'Unable to process selected file. Please try again.',
+      }))
       event.target.value = ''
-      return
     }
-    setFileErrors((prev) => ({ ...prev, aadhaarPassport: '' }))
-    if (aadhaarPassportPreview) {
-      URL.revokeObjectURL(aadhaarPassportPreview)
-    }
-    setAadhaarPassportPreview(URL.createObjectURL(file))
-    setAadhaarPassportPreviewType(file.type || '')
-    setValues((prev) => ({ ...prev, aadhaarPassport: file }))
-    event.target.value = ''
   }
 
   const removePhoto = () => {
@@ -744,7 +843,7 @@ function App() {
             </div>
             <h2 className="modal-title">{modalData.title}</h2>
             <p className="modal-message">{modalData.message}</p>
-            <button className="modal-button" onClick={closeModal}>
+            <button type="button" className="modal-button" onClick={closeModal}>
               {modalData.type === 'success' ? 'Done' : 'OK'}
             </button>
           </div>
@@ -826,9 +925,12 @@ function App() {
             </label>
 
             <div className="field file-field">
-              <label>
+              <label htmlFor={`photo-${resetFormKey}`}>
                 <span className="label">Visitor Photo</span>
+              </label>
+              <div className="file-input-wrapper">
                 <input
+                  id={`photo-${resetFormKey}`}
                   key={`photo-${resetFormKey}`}
                   type="file"
                   name="photo"
@@ -836,7 +938,14 @@ function App() {
                   onBlur={handleBlur}
                   accept="image/*"
                 />
-              </label>
+                <button type="button" className="file-input-icon-btn" onClick={(event) => openCamera(event, 'photo')} title="Open Camera" aria-label="Open Camera">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </button>
+              </div>
+              <span className="helper">Supported formats: JPG, JPEG, PNG. <br></br>Max size: 5 MB.</span>
               <input
                 ref={cameraCaptureInputRef}
                 type="file"
@@ -847,11 +956,6 @@ function App() {
                 tabIndex={-1}
                 aria-hidden="true"
               />
-              <div className="photo-actions">
-                <button type="button" className="ghost-btn" onClick={(event) => openCamera(event, 'photo')}>
-                  Open Camera
-                </button>
-              </div>
               {fileErrors.photo && <span className="error">{fileErrors.photo}</span>}
               {cameraError && <span className="error">{cameraError}</span>}
               {cameraOpen && (
@@ -897,9 +1001,12 @@ function App() {
             </div>
 
             <div className="field file-field">
-              <label>
+              <label htmlFor={`aadhaarPassport-${resetFormKey}`}>
                 <span className="label">Aadhaar / Passport</span>
+              </label>
+              <div className="file-input-wrapper">
                 <input
+                  id={`aadhaarPassport-${resetFormKey}`}
                   key={`aadhaarPassport-${resetFormKey}`}
                   type="file"
                   name="aadhaarPassport"
@@ -907,7 +1014,20 @@ function App() {
                   onBlur={handleBlur}
                   accept="image/*,.pdf,application/pdf"
                 />
-              </label>
+                <button
+                  type="button"
+                  className="file-input-icon-btn"
+                  onClick={(event) => openCamera(event, 'aadhaarPassport')}
+                  title="Open Camera"
+                  aria-label="Open Camera"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </button>
+              </div>
+              <span className="helper">Supported formats: JPG, JPEG, PNG, PDF. <br></br>Max size: 5 MB.</span>
               <input
                 ref={aadhaarPassportCameraCaptureInputRef}
                 type="file"
@@ -918,15 +1038,6 @@ function App() {
                 tabIndex={-1}
                 aria-hidden="true"
               />
-              <div className="photo-actions">
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={(event) => openCamera(event, 'aadhaarPassport')}
-                >
-                  Open Camera
-                </button>
-              </div>
               {fileErrors.aadhaarPassport && <span className="error">{fileErrors.aadhaarPassport}</span>}
               {aadhaarPassportPreview && aadhaarPassportPreviewType.startsWith('image/') && (
                 <div className="photo-preview">
@@ -1018,6 +1129,7 @@ function App() {
                 onBlur={handleBlur}
                 onClick={() => departureRef.current?.showPicker()}
                 min={values.arrival || nowValue}
+                max={values.arrival ? `${values.arrival.split('T')[0]}T21:30` : ''}
                 aria-invalid={Boolean(showError('departure'))}
               />
               {showError('departure') && <span className="error">{errors.departure}</span>}
@@ -1135,10 +1247,18 @@ function App() {
                 <h2>Vehicle Details</h2>
                 <p>Vehicle information for entry management.</p>
               </div>
-              <button type="button" className="ghost-btn" onClick={addVehicle}>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={addVehicle}
+                disabled={values.vehicles.length >= MAX_VEHICLES}
+              >
                 Add Vehicle
               </button>
             </div>
+            {values.vehicles.length >= MAX_VEHICLES && (
+              <span className="error">You can add up to {MAX_VEHICLES} vehicles only.</span>
+            )}
           </div>
 
           <div className="vehicle-list">
@@ -1167,7 +1287,13 @@ function App() {
                         handleVehicleChange(index, 'number', event.target.value)
                       }
                       onBlur={() => handleVehicleBlur(index, 'number')}
-                      placeholder="KA 01 AB 1234"
+                      placeholder="KA01AB1234"
+                      maxLength={15}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      autoComplete="off"
+                      spellCheck={false}
+                      inputMode="text"
                       aria-invalid={Boolean(showVehicleError(index, 'number'))}
                     />
                     {showVehicleError(index, 'number') && (

@@ -273,16 +273,50 @@ select[aria-invalid='true'] {
 
 /* ── File field ── */
 .file-field input[type='file'] {
-  padding: 0.6rem;
+  padding: 0.6rem 3rem 0.6rem 0.6rem;
   border-style: dashed;
   background: #fdfaf6;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.file-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.file-input-icon-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  border: none;
+  background: transparent;
+  padding: 0.4rem;
+  cursor: pointer;
+  color: var(--accent);
+  transition: transform 0.15s ease, opacity 0.2s ease;
+  pointer-events: all;
+  z-index: 10;
+}
+
+.file-input-icon-btn:hover {
+  transform: translateY(-50%) scale(1.1);
+  opacity: 0.8;
+}
+
+.file-input-icon-btn:active {
+  transform: translateY(-50%) scale(0.98);
 }
 
 .photo-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
+  display: none;
 }
 
 /* ── Camera modal ── */
@@ -517,6 +551,30 @@ select[aria-invalid='true'] {
 .link-btn:disabled {
   color: rgba(0, 0, 0, 0.35);
   cursor: not-allowed;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid var(--accent);
+  background: transparent;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--accent);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(122, 21, 53, 0.08);
+  transform: scale(1.05);
+}
+
+.icon-btn:active {
+  transform: scale(0.98);
 }
 
 /* ── Form actions ── */
