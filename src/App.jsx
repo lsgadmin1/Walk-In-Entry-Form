@@ -1257,11 +1257,11 @@ function App() {
               </div>
               <button
                 type="button"
-                className="ghost-btn"
+                className="link-btn"
                 onClick={addVehicle}
                 disabled={values.vehicles.length >= MAX_VEHICLES}
               >
-                Add Vehicle
+                Add Vehicle +
               </button>
             </div>
             {values.vehicles.length >= MAX_VEHICLES && (
