@@ -587,7 +587,7 @@ function App() {
       submissionData.Visitor_s_Photo = values.photo
     }
     if (values.idProof) {
-      submissionData.ID_Proof = values.idProof
+      submissionData.Aadhaar_or_Passport = values.idProof
     }
 
     try {
@@ -819,7 +819,7 @@ function App() {
 
             <div className="field file-field">
               <label>
-                <span className="label">ID Proof</span>
+                <span className="label">Aadhaar / Passport</span>
                 <input
                   key={`idProof-${resetFormKey}`}
                   type="file"
