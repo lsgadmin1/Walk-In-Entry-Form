@@ -57,7 +57,7 @@ const validate = (values) => {
     if (depDate !== arrDate) {
       errors.departure = 'Departure date must be same as arrival date.'
     } else if (depTime <= currentTime) {
-      errors.departure = 'Departure time must be greater than current time.'
+      errors.departure = 'Please select a future time for your departure.'
     } else if (depTime >= '21:30') {
       errors.departure = 'Departure time must be before 09:30 PM.'
     }
@@ -77,6 +77,10 @@ const validate = (values) => {
       const numericValue = Number(rawValue)
       if (!Number.isFinite(numericValue) || !Number.isInteger(numericValue) || numericValue < 0) {
         errors[field] = 'Enter a valid number.'
+        return
+      }
+      if (numericValue > 999) {
+        errors[field] = 'Maximum allowed value is 999.'
         return
       }
       total += numericValue
@@ -396,6 +400,10 @@ function App() {
       nextValues.women = '0'
       nextValues.boys = '0'
       nextValues.girls = '0'
+    }
+
+    if (['men', 'women', 'boys', 'girls'].includes(name)) {
+      nextValues[name] = String(nextValue).replace(/\D/g, '').slice(0, 3)
     }
 
     if (name === 'gender' && values.members === 'single') {
@@ -1121,7 +1129,7 @@ function App() {
         <section className="form-section">
           <div className="section-title">
             <h2>Visit Schedule</h2>
-            <p>Expected departure date-time.</p>
+            <p>Please provide your expected departure time.</p>
           </div>
           <div className="form-grid">
             <label className="field">
@@ -1191,12 +1199,14 @@ function App() {
               <label className="field">
                 <span className="label">Number of Men</span>
                 <input
-                  type="number"
+                  type="text"
                   name="men"
                   value={values.men}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  min="0"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
                   placeholder="0"
                   aria-invalid={Boolean(showError('men'))}
                 />
@@ -1205,12 +1215,14 @@ function App() {
               <label className="field">
                 <span className="label">Number of Women</span>
                 <input
-                  type="number"
+                  type="text"
                   name="women"
                   value={values.women}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  min="0"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
                   placeholder="0"
                   aria-invalid={Boolean(showError('women'))}
                 />
@@ -1219,12 +1231,14 @@ function App() {
               <label className="field">
                 <span className="label">Number of Boys</span>
                 <input
-                  type="number"
+                  type="text"
                   name="boys"
                   value={values.boys}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  min="0"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
                   placeholder="0"
                   aria-invalid={Boolean(showError('boys'))}
                 />
@@ -1233,12 +1247,14 @@ function App() {
               <label className="field">
                 <span className="label">Number of Girls</span>
                 <input
-                  type="number"
+                  type="text"
                   name="girls"
                   value={values.girls}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  min="0"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
                   placeholder="0"
                   aria-invalid={Boolean(showError('girls'))}
                 />
