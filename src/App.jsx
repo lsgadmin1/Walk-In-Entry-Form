@@ -842,7 +842,9 @@ function App() {
       setAadhaarPassportPreview('')
       setAadhaarPassportPreviewType('')
       setResetFormKey((prev) => prev + 1)
-      window.location.href = 'https://srimadhusudansai.com/'
+      if(env === 'production') {
+        window.location.href = 'https://srimadhusudansai.com/'
+      }
     }
   }
 
