@@ -87,6 +87,12 @@ const validate = (values) => {
     })
 
     const hasGroupFieldErrors = groupFields.some((field) => errors[field])
+    if (!hasGroupFieldErrors && values.gender === 'Female' && Number(values.women) < 1) {
+      errors.women = 'At least 1 woman is required when gender is Female.'
+    }
+    if (!hasGroupFieldErrors && values.gender === 'Male' && Number(values.men) < 1) {
+      errors.men = 'At least 1 man is required when gender is Male.'
+    }
     if (!hasGroupFieldErrors && total === 0) {
       errors.groupTotal = 'Provide at least one group member.'
     }
