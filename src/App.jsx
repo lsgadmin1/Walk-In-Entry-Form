@@ -41,7 +41,9 @@ const validate = (values) => {
     errors.phone = 'Enter a valid phone number.'
   }
 
-  if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+  if (values.email.trim() && values.email.trim().length > 80) {
+    errors.email = 'Email must not exceed 80 characters.'
+  } else if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
     errors.email = 'Enter a valid email address.'
   }
 
