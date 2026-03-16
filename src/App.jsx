@@ -172,7 +172,7 @@ const formatVehicleType = (value) => {
   return toTitleCase(value.replace(/-/g, ' '))
 }
 
-const VEHICLE_NUMBER_REGEX = /^[A-Z0-9]{4,15}$/
+const VEHICLE_NUMBER_REGEX = /^[A-Z0-9 ]{4,15}$/
 const MAX_VEHICLES = 5
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
 const MAX_CAMERA_IMAGE_DIMENSION = 1600
