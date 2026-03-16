@@ -168,12 +168,6 @@ const formatZohoDateTime = (value) => {
   return `${day}-${months[monthIndex]}-${year} ${hour}:${minute}`
 }
 
-const formatVehicleType = (value) => {
-  if (!value) return ''
-  if (value === 'two-wheeler') return 'Two Wheeler'
-  return toTitleCase(value.replace(/-/g, ' '))
-}
-
 const VEHICLE_NUMBER_REGEX = /^[A-Z0-9 ]{4,15}$/
 const MAX_VEHICLES = 5
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
@@ -768,7 +762,7 @@ function App() {
       .filter((vehicle) => vehicle.number.trim() || vehicle.type)
       .map((vehicle) => ({
         Vehicle_Number: vehicle.number.trim(),
-        Vehicle_Type: formatVehicleType(vehicle.type),
+        Vehicle_Type: vehicle.type,
       }))
 
     const submissionData = {
