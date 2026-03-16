@@ -103,7 +103,7 @@ const validate = (values) => {
       const vehicleErrors = {}
       if (!vehicle.number.trim()) vehicleErrors.number = 'Vehicle number is required.'
       else if (!VEHICLE_NUMBER_REGEX.test(vehicle.number.trim())) {
-        vehicleErrors.number = 'Vehicle number must be 4-15 uppercase alphanumeric characters.'
+        vehicleErrors.number = 'Vehicle number must be 4-15 characters (uppercase letters, numbers, and spaces only).'
       }
       if (!vehicle.type) vehicleErrors.type = 'Select a vehicle type.'
       return vehicleErrors
@@ -441,7 +441,7 @@ function App() {
   const handleVehicleChange = (index, field, value) => {
     const nextValue =
       field === 'number'
-        ? value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15)
+        ? value.toUpperCase().replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').slice(0, 15)
         : value
     setValues((prev) => {
       const vehicles = prev.vehicles.map((vehicle, vehicleIndex) =>
