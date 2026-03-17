@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import PhoneInput from 'react-phone-input-2'
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import 'react-phone-input-2/lib/style.css'
 import './App.css'
 import uploadData from './utils/uploadData'
@@ -21,7 +22,7 @@ const initialValues = {
   vehicles: [],
 }
 
-const validate = (values) => {
+const validate = (values, phoneCountryCode = 'in') => {
   const errors = {}
 
   if (!values.fullName.trim()) {
@@ -34,11 +35,18 @@ const validate = (values) => {
     errors.fullName = 'Full name must contain only alphabets and spaces.'
   }
 
-  const phoneDigits = values.phone.trim()
-  if (!phoneDigits || phoneDigits === '91') {
+  const phoneDigits = (values.phone || '').trim()
+  if (!phoneDigits) {
     errors.phone = 'Phone number is required.'
-  } else if (!/^\d{10,15}$/.test(phoneDigits)) {
-    errors.phone = 'Enter a valid phone number.'
+  } else {
+    const e164Phone = `+${phoneDigits}`
+    const parsedPhone = parsePhoneNumberFromString(
+      e164Phone,
+      (phoneCountryCode || 'in').toUpperCase(),
+    )
+    if (!parsedPhone || !parsedPhone.isValid()) {
+      errors.phone = 'Enter a valid phone number.'
+    }
   }
 
   if (values.email.trim() && values.email.trim().length > 80) {
@@ -283,6 +291,7 @@ function App() {
   const [aadhaarPassportPreviewType, setAadhaarPassportPreviewType] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraTarget, setCameraTarget] = useState('photo')
+  const [phoneCountryCode, setPhoneCountryCode] = useState('in')
   const [fileErrors, setFileErrors] = useState({ photo: '', aadhaarPassport: '' })
   const [cameraStream, setCameraStream] = useState(null)
   const [errors, setErrors] = useState({})
@@ -339,8 +348,8 @@ function App() {
     return updatedValues
   }
 
-  const updateErrors = (nextValues) => {
-    setErrors(validate(nextValues))
+  const updateErrors = (nextValues, nextPhoneCountryCode = phoneCountryCode) => {
+    setErrors(validate(nextValues, nextPhoneCountryCode))
   }
 
   const showCameraErrorModal = (message, target = '') => {
@@ -487,11 +496,13 @@ function App() {
     updateErrors(values)
   }
 
-  const handlePhoneChange = (value) => {
+  const handlePhoneChange = (value, countryData) => {
+    const nextPhoneCountryCode = countryData?.countryCode || phoneCountryCode
     const nextValues = { ...values, phone: value }
+    setPhoneCountryCode(nextPhoneCountryCode)
     setValues(nextValues)
     if (touched.phone) {
-      updateErrors(nextValues)
+      updateErrors(nextValues, nextPhoneCountryCode)
     }
   }
 
@@ -728,7 +739,7 @@ function App() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    const validationErrors = validate(values)
+    const validationErrors = validate(values, phoneCountryCode)
     setErrors(validationErrors)
     setTouched({
       fullName: true,
