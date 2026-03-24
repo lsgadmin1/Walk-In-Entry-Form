@@ -51,7 +51,7 @@ const validate = (values, phoneCountryCode = 'in') => {
 
   if (values.email.trim() && values.email.trim().length > 80) {
     errors.email = 'Email must not exceed 80 characters.'
-  } else if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+  } else if (values.email.trim() && !/^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+\.[A-Za-z]{2,}$/.test(values.email.trim())) {
     errors.email = 'Enter a valid email address.'
   }
 
