@@ -789,7 +789,7 @@ function App() {
     }
 
     submissionData.Email = values.email.trim() || null
-    submissionData.Vehicle_Information = vehiclesInfo.length > 0 ? vehiclesInfo : null
+    submissionData.Vehicles_Information = vehiclesInfo.length > 0 ? vehiclesInfo : null
     if (values.photo) {
       submissionData.Visitor_s_Photo = values.photo
     }
