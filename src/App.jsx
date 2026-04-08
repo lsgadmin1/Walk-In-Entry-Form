@@ -178,12 +178,17 @@ const formatZohoDateTime = (value) => {
 
 const VEHICLE_NUMBER_REGEX = /^[A-Z0-9 ]{4,15}$/
 const MAX_VEHICLES = 5
+const MIN_UPLOAD_SIZE_BYTES = 5 * 1024
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
 const MAX_CAMERA_IMAGE_DIMENSION = 1600
 const CAMERA_IMAGE_QUALITY = 0.82
+const FILE_ERROR_DISPLAY_MS = 5000
 
 const validateUploadFile = (file, fieldName) => {
   if (!file) return ''
+  if (file.size < MIN_UPLOAD_SIZE_BYTES) {
+    return 'File size must be at least 5 KB.'
+  }
   if (file.size > MAX_UPLOAD_SIZE_BYTES) {
     return 'File size must be less than 5 MB.'
   }
@@ -307,6 +312,7 @@ function App() {
   const cameraCaptureInputRef = useRef(null)
   const aadhaarPassportCameraCaptureInputRef = useRef(null)
   const departureRef = useRef(null)
+  const fileErrorTimeoutsRef = useRef({ photo: null, aadhaarPassport: null })
 
   const [env, setEnv] = useState('production')
   const [facingMode, setFacingMode] = useState('user')
@@ -352,6 +358,27 @@ function App() {
     setErrors(validate(nextValues, nextPhoneCountryCode))
   }
 
+  const clearFileError = (fieldName) => {
+    const timeoutId = fileErrorTimeoutsRef.current[fieldName]
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      fileErrorTimeoutsRef.current[fieldName] = null
+    }
+    setFileErrors((prev) => ({ ...prev, [fieldName]: '' }))
+  }
+
+  const showTemporaryFileError = (fieldName, message) => {
+    const timeoutId = fileErrorTimeoutsRef.current[fieldName]
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+    setFileErrors((prev) => ({ ...prev, [fieldName]: message }))
+    fileErrorTimeoutsRef.current[fieldName] = setTimeout(() => {
+      setFileErrors((prev) => ({ ...prev, [fieldName]: '' }))
+      fileErrorTimeoutsRef.current[fieldName] = null
+    }, FILE_ERROR_DISPLAY_MS)
+  }
+
   const showCameraErrorModal = (message, target = '') => {
     const targetLabel = target === 'aadhaarPassport' ? 'Aadhaar / Passport' : 'Visitor Photo'
     setModalData({
@@ -370,6 +397,12 @@ function App() {
 
   useEffect(() => {
     return () => {
+      if (fileErrorTimeoutsRef.current.photo) {
+        clearTimeout(fileErrorTimeoutsRef.current.photo)
+      }
+      if (fileErrorTimeoutsRef.current.aadhaarPassport) {
+        clearTimeout(fileErrorTimeoutsRef.current.aadhaarPassport)
+      }
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
       }
@@ -389,11 +422,11 @@ function App() {
     if (type === 'file' && (name === 'photo' || name === 'aadhaarPassport')) {
       const validationError = validateUploadFile(nextValue, name)
       if (validationError) {
-        setFileErrors((prev) => ({ ...prev, [name]: validationError }))
+        showTemporaryFileError(name, validationError)
         event.target.value = ''
         return
       }
-      setFileErrors((prev) => ({ ...prev, [name]: '' }))
+      clearFileError(name)
     }
 
     let nextValues = { ...values, [name]: nextValue }
@@ -619,11 +652,11 @@ function App() {
         const targetField = cameraTarget === 'aadhaarPassport' ? 'aadhaarPassport' : 'photo'
         const validationError = validateUploadFile(file, targetField)
         if (validationError) {
-          setFileErrors((prev) => ({ ...prev, [targetField]: validationError }))
+          showTemporaryFileError(targetField, validationError)
           stopCamera()
           return
         }
-        setFileErrors((prev) => ({ ...prev, [targetField]: '' }))
+        clearFileError(targetField)
         if (cameraTarget === 'aadhaarPassport') {
           if (aadhaarPassportPreview) {
             URL.revokeObjectURL(aadhaarPassportPreview)
@@ -641,10 +674,7 @@ function App() {
         stopCamera()
       } catch (error) {
         const targetField = cameraTarget === 'aadhaarPassport' ? 'aadhaarPassport' : 'photo'
-        setFileErrors((prev) => ({
-          ...prev,
-          [targetField]: 'Unable to process camera image. Please try again.',
-        }))
+        showTemporaryFileError(targetField, 'Unable to process camera image. Please try again.')
         stopCamera()
       }
     }, 'image/jpeg', CAMERA_IMAGE_QUALITY)
@@ -657,11 +687,11 @@ function App() {
       const file = await compressImageFile(selectedFile, 'visitor-photo')
       const validationError = validateUploadFile(file, 'photo')
       if (validationError) {
-        setFileErrors((prev) => ({ ...prev, photo: validationError }))
+        showTemporaryFileError('photo', validationError)
         event.target.value = ''
         return
       }
-      setFileErrors((prev) => ({ ...prev, photo: '' }))
+      clearFileError('photo')
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
       }
@@ -669,10 +699,7 @@ function App() {
       setValues((prev) => ({ ...prev, photo: file }))
       event.target.value = ''
     } catch (error) {
-      setFileErrors((prev) => ({
-        ...prev,
-        photo: 'Unable to process selected image. Please try again.',
-      }))
+      showTemporaryFileError('photo', 'Unable to process selected image. Please try again.')
       event.target.value = ''
     }
   }
@@ -686,11 +713,11 @@ function App() {
         : selectedFile
       const validationError = validateUploadFile(file, 'aadhaarPassport')
       if (validationError) {
-        setFileErrors((prev) => ({ ...prev, aadhaarPassport: validationError }))
+        showTemporaryFileError('aadhaarPassport', validationError)
         event.target.value = ''
         return
       }
-      setFileErrors((prev) => ({ ...prev, aadhaarPassport: '' }))
+      clearFileError('aadhaarPassport')
       if (aadhaarPassportPreview) {
         URL.revokeObjectURL(aadhaarPassportPreview)
       }
@@ -699,10 +726,7 @@ function App() {
       setValues((prev) => ({ ...prev, aadhaarPassport: file }))
       event.target.value = ''
     } catch (error) {
-      setFileErrors((prev) => ({
-        ...prev,
-        aadhaarPassport: 'Unable to process selected file. Please try again.',
-      }))
+      showTemporaryFileError('aadhaarPassport', 'Unable to process selected file. Please try again.')
       event.target.value = ''
     }
   }
@@ -712,7 +736,7 @@ function App() {
       URL.revokeObjectURL(photoPreview)
     }
     setPhotoPreview('')
-    setFileErrors((prev) => ({ ...prev, photo: '' }))
+    clearFileError('photo')
     setValues((prev) => ({ ...prev, photo: null }))
     // Clear file inputs
     const photoInput = document.querySelector('input[name="photo"]')
@@ -728,7 +752,7 @@ function App() {
     }
     setAadhaarPassportPreview('')
     setAadhaarPassportPreviewType('')
-    setFileErrors((prev) => ({ ...prev, aadhaarPassport: '' }))
+    clearFileError('aadhaarPassport')
     setValues((prev) => ({ ...prev, aadhaarPassport: null }))
     const aadhaarPassportInput = document.querySelector('input[name="aadhaarPassport"]')
     if (aadhaarPassportInput) aadhaarPassportInput.value = ''
@@ -741,6 +765,7 @@ function App() {
     event.preventDefault()
     const validationErrors = validate(values, phoneCountryCode)
     setErrors(validationErrors)
+    const hasFileValidationErrors = Object.values(fileErrors).some(Boolean)
     setTouched({
       fullName: true,
       phone: true,
@@ -757,7 +782,7 @@ function App() {
       values.vehicles.map(() => ({ number: true, type: true })),
     )
 
-    if (Object.keys(validationErrors).length > 0) {
+    if (Object.keys(validationErrors).length > 0 || hasFileValidationErrors) {
       setModalData({
         type: 'error',
         title: 'Validation Error',
@@ -843,7 +868,8 @@ function App() {
       setErrors({})
       setTouched({})
       setTouchedVehicles([])
-      setFileErrors({ photo: '', aadhaarPassport: '' })
+      clearFileError('photo')
+      clearFileError('aadhaarPassport')
       stopCamera()
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
@@ -1388,7 +1414,8 @@ function App() {
               setErrors({})
               setTouched({})
               setTouchedVehicles([])
-              setFileErrors({ photo: '', aadhaarPassport: '' })
+              clearFileError('photo')
+              clearFileError('aadhaarPassport')
               stopCamera()
               if (photoPreview) {
                 URL.revokeObjectURL(photoPreview)
