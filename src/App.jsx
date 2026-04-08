@@ -68,12 +68,7 @@ const validate = (values, phoneCountryCode = 'in') => {
       errors.departure = 'Enter a valid departure date and time.'
     } else if (arrivalDateTime && Number.isNaN(arrivalDateTime.getTime())) {
       errors.departure = 'Enter a valid arrival date and time.'
-    } else if (
-      arrivalDateTime &&
-      departureDateTime.toDateString() !== arrivalDateTime.toDateString()
-    ) {
-      errors.departure = 'Departure date must be same as arrival date.'
-    } else if (departureDateTime <= now) {
+    }else if (departureDateTime <= now) {
       errors.departure = 'Please select a future time for your departure.'
     } else {
       const departureCutoff = new Date(departureDateTime)
