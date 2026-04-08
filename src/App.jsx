@@ -61,15 +61,26 @@ const validate = (values, phoneCountryCode = 'in') => {
     errors.departure = 'Departure time is required.'
   } else {
     const now = new Date()
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    const [depDate, depTime] = values.departure.split('T')
-    const [arrDate] = (values.arrival || '').split('T')
-    if (depDate !== arrDate) {
+    const departureDateTime = new Date(values.departure)
+    const arrivalDateTime = values.arrival ? new Date(values.arrival) : null
+
+    if (Number.isNaN(departureDateTime.getTime())) {
+      errors.departure = 'Enter a valid departure date and time.'
+    } else if (arrivalDateTime && Number.isNaN(arrivalDateTime.getTime())) {
+      errors.departure = 'Enter a valid arrival date and time.'
+    } else if (
+      arrivalDateTime &&
+      departureDateTime.toDateString() !== arrivalDateTime.toDateString()
+    ) {
       errors.departure = 'Departure date must be same as arrival date.'
-    } else if (depTime <= currentTime) {
+    } else if (departureDateTime <= now) {
       errors.departure = 'Please select a future time for your departure.'
-    } else if (depTime >= '21:30') {
-      errors.departure = 'Departure time must be before 09:30 PM.'
+    } else {
+      const departureCutoff = new Date(departureDateTime)
+      departureCutoff.setHours(21, 30, 0, 0)
+      if (departureDateTime >= departureCutoff) {
+        errors.departure = 'Departure time must be before 09:30 PM.'
+      }
     }
   }
 
