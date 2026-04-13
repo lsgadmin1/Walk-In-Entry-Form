@@ -119,7 +119,7 @@ const validate = (values, phoneCountryCode = 'in') => {
       const vehicleErrors = {}
       if (!vehicle.number.trim()) vehicleErrors.number = 'Vehicle number is required.'
       else if (!VEHICLE_NUMBER_REGEX.test(vehicle.number.trim())) {
-        vehicleErrors.number = 'Vehicle number must be 4-15 characters (uppercase letters, numbers, and spaces only).'
+        vehicleErrors.number = 'Vehicle number must be 4-15 characters, include at least one number.'
       }
       if (!vehicle.type) vehicleErrors.type = 'Select a vehicle type.'
       return vehicleErrors
@@ -182,7 +182,7 @@ const formatZohoDateTime = (value) => {
   return `${day}-${months[monthIndex]}-${year} ${hour}:${minute}`
 }
 
-const VEHICLE_NUMBER_REGEX = /^[A-Z0-9 ]{4,15}$/
+const VEHICLE_NUMBER_REGEX = /^(?=.*\d)[A-Z0-9 ]{4,15}$/
 const MAX_VEHICLES = 5
 const MIN_UPLOAD_SIZE_BYTES = 5 * 1024
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
