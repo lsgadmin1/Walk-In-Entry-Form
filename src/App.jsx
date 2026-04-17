@@ -57,6 +57,14 @@ const validate = (values, phoneCountryCode = 'in') => {
 
   if (!values.gender) errors.gender = 'Select a gender.'
 
+  if (!values.photo) {
+    errors.photo = 'Visitor Photo is required.'
+  }
+
+  if (!values.aadhaarPassport) {
+    errors.aadhaarPassport = 'Aadhaar / Passport is required.'
+  }
+
   if (!values.departure) {
     errors.departure = 'Departure time is required.'
   } else {
@@ -364,6 +372,15 @@ function App() {
     setErrors(validate(nextValues, nextPhoneCountryCode))
   }
 
+  const clearFieldError = (fieldName) => {
+    setErrors((prev) => {
+      if (!prev[fieldName]) return prev
+      const nextErrors = { ...prev }
+      delete nextErrors[fieldName]
+      return nextErrors
+    })
+  }
+
   const clearFileError = (fieldName) => {
     const timeoutId = fileErrorTimeoutsRef.current[fieldName]
     if (timeoutId) {
@@ -433,6 +450,7 @@ function App() {
         return
       }
       clearFileError(name)
+      clearFieldError(name)
     }
 
     let nextValues = { ...values, [name]: nextValue }
@@ -663,6 +681,7 @@ function App() {
           return
         }
         clearFileError(targetField)
+        clearFieldError(targetField)
         if (cameraTarget === 'aadhaarPassport') {
           if (aadhaarPassportPreview) {
             URL.revokeObjectURL(aadhaarPassportPreview)
@@ -698,6 +717,7 @@ function App() {
         return
       }
       clearFileError('photo')
+      clearFieldError('photo')
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview)
       }
@@ -724,6 +744,7 @@ function App() {
         return
       }
       clearFileError('aadhaarPassport')
+      clearFieldError('aadhaarPassport')
       if (aadhaarPassportPreview) {
         URL.revokeObjectURL(aadhaarPassportPreview)
       }
@@ -776,6 +797,8 @@ function App() {
       fullName: true,
       phone: true,
       email: true,
+      photo: true,
+      aadhaarPassport: true,
       gender: true,
       departure: true,
       members: true,
@@ -988,7 +1011,9 @@ function App() {
 
             <div className="field file-field">
               <label htmlFor={`photo-${resetFormKey}`}>
-                <span className="label">Visitor Photo</span>
+                <span className="label">
+                  Visitor Photo <span className="required">*</span>
+                </span>
               </label>
               <div className="file-input-wrapper">
                 <input
@@ -1018,7 +1043,9 @@ function App() {
                 tabIndex={-1}
                 aria-hidden="true"
               />
-              {fileErrors.photo && <span className="error">{fileErrors.photo}</span>}
+              {(fileErrors.photo || showError('photo')) && (
+                <span className="error">{fileErrors.photo || errors.photo}</span>
+              )}
               {cameraOpen && (
                 <div className="camera-modal-overlay">
                   <div className="camera-modal-content">
@@ -1063,7 +1090,9 @@ function App() {
 
             <div className="field file-field">
               <label htmlFor={`aadhaarPassport-${resetFormKey}`}>
-                <span className="label">Aadhaar / Passport</span>
+                <span className="label">
+                  Aadhaar / Passport <span className="required">*</span>
+                </span>
               </label>
               <div className="file-input-wrapper">
                 <input
@@ -1099,7 +1128,9 @@ function App() {
                 tabIndex={-1}
                 aria-hidden="true"
               />
-              {fileErrors.aadhaarPassport && <span className="error">{fileErrors.aadhaarPassport}</span>}
+              {(fileErrors.aadhaarPassport || showError('aadhaarPassport')) && (
+                <span className="error">{fileErrors.aadhaarPassport || errors.aadhaarPassport}</span>
+              )}
               {aadhaarPassportPreview && aadhaarPassportPreviewType.startsWith('image/') && (
                 <div className="photo-preview">
                   <img src={aadhaarPassportPreview} alt="Captured Aadhaar or Passport" />
@@ -1307,6 +1338,7 @@ function App() {
               </label>
             </div>
           )}
+
         </section>
 
         <section className="form-section">
